@@ -1,101 +1,147 @@
+/* 
+Base Plugin: http://www.jqueryscript.net/form/jQuery-Floating-Placeholder-Text-Plugin-Placeholder-Label.html 
+Improved Version: https://github.com/fareilweb/jquery-placeholder-label
+*/
+
 (function ($) {
     $.fn.placeholderLabel = function(options) {
-                
+
         var settings = $.extend({
             // These are the defaults.
             placeholderColor: "#898989",
             labelColor: "#4AA2CC",
             labelSize: this.css('font-size'),
+            labelHeight: '22px',
             useBorderColor: true,
-            inInput: true,
+            inInput: false,
             timeMove: 200
-        }, options); 
+        }, options);
 
-        var BindOnData = function (label, input, pt){
-            var lh = label.height();
-            var mtm = Number(pt.replace('px','')) + (lh/2);
-            if(!settings.inInput){
-                mtm += lh/2;
-                label.css('background-color','');
+        var BindOnData = function (label, input, paddingTop){
+            if (input.status === false) {
+                input.status = true;
+                var labelHeight = Number(settings.labelHeight.replace('px', ''));
+                var difference = input.height() > labelHeight ? (input.height() - labelHeight) : 0;
+                var mtm = Number(paddingTop.replace('px', '')) + difference + (labelHeight / 2);
+                if(!settings.inInput){
+                    mtm += labelHeight/2;
+                    label.css('background-color','');
+                }
+                label.animate({
+                    marginTop: "-="+mtm,
+                    fontSize: settings.labelSize,
+                }, settings.timeMove);
+                input.keyup();
             }
-            label.animate({
-                marginTop: "-="+mtm,
-                fontSize: settings.labelSize,
-            }, settings.timeMove);
-            input.keyup();
         }
         //Work
         $(this).each(function (i,e){
             var self = $(e);
+            self.status = false;
+            var ep          = self.position().left;
+            var paddingTop  = self.css('padding-top');
+            var paddingLeft = self.css('padding-left');
+            var marginTop   = self.css('margin-top');
+            var marginLeft  = self.css('margin-left');
+
             if(self.attr('bind-placeholder-label') != undefined){
-                var pt = self.css('padding-top');
-                BindOnData(self.prev(), self, pt);
+                BindOnData(self.prev(), self, paddingTop);
             }
+
             var currentBorderColor = self.css('border-color');
             var currentPlaceholderSize = self.css('font-size');
+
             if(self.attr('placeholder')){
-            
                 var label = $('<label></label>');
-                label.css('position','absolute');
-                label.css('cursor','initial');
-                label.css('color',settings.placeholderColor);
-                label.css('font-size',currentPlaceholderSize);
+                label.css('position', 'absolute');
+                label.css('cursor', 'initial');
+                label.css('color', settings.placeholderColor);
+                label.css('font-size', currentPlaceholderSize);
+                label.css('height', settings.labelHeight);
+                label.css('line-height', settings.labelHeight);
+                label.css('z-index', 1);
+                var labelHeight = Number(settings.labelHeight.replace('px', ''));
+                var difference = self.height() > labelHeight ? (self.height() - labelHeight) : 0;
+                var mtm = Number(paddingTop.replace('px', '')) + difference + (labelHeight / 2);
+
+                label.moveOut = function () {
+                    self.status = true;
+                    if (!settings.inInput) {
+                        mtm += labelHeight / 2;
+                        label.css('background-color', '');
+                    };
+                    label.animate({
+                        marginTop: '-=' + mtm + 'px',
+                        fontSize: settings.labelSize,
+                    }, settings.timeMove, function () {
+
+                    });
+                };
+
+                label.moveIn = function () {
+                    self.status = false;
+                    if (!settings.inInput) {
+                        mtm += labelHeight / 2;
+                        label.css('background-color', '');
+                    };
+                    label.animate({
+                        marginTop: '+=' + mtm + 'px',
+                        fontSize: currentPlaceholderSize
+                    }, settings.timeMove, function () {
+
+                    });
+                };
 
                 var text = self.attr('placeholder');
                 self.removeAttr('placeholder');
                 label.text(text);
-                var ep = self.position().left;
-                var pt = self.css('padding-top');
-                var pl = self.css('padding-left');
-                var mt = self.css('margin-top');
-                var ml = self.css('margin-left');
-
-                label.css('margin-top', (Number(pt.replace('px',''))) + Number(mt.replace('px','')));
-                label.css('margin-left', (Number(pl.replace('px','')) - 5) + Number(ml.replace('px','')));
+                label.css('margin-top', Number(paddingTop.replace('px','')) + Number(marginTop.replace('px','')) + difference);
+                label.css('margin-left', (Number(paddingLeft.replace('px','')) - 5) + Number(marginLeft.replace('px','')));
                 label.css('padding-left','5px');
                 label.css('padding-right','5px');
-                label.css('background-color',self.css('background-color'));
+                label.css('background-color', self.css('background-color'));
+
                 //Event
                 var self = self;
-                label.click(function (){
-                    self.focus();
+                label.on("click", function (){
+                    self.trigger("focus");
                 });
-                self.focus(function(){
+                self.on("change", function () {
+                    if (settings.useBorderColor) {
+                        self.css('border-color', settings.labelColor);
+                    }
+                    label.css('color', settings.labelColor);
+                    if (self.status === false) {
+                        label.moveOut();
+                    }
+                });
+                self.on("focus", function(){
                     if(settings.useBorderColor){
                         self.css('border-color',settings.labelColor);
                     }
-                    label.css('color',settings.labelColor);
-                    if(!self.val().length){
-                        var lh = label.height();
-                        var mtm = Number(pt.replace('px','')) + (lh/2);
-                        if(!settings.inInput){
-                            mtm += lh/2;
-                            label.css('background-color','');
-                        }
-                        label.animate({
-                            marginTop: "-="+mtm,
-                            fontSize: settings.labelSize,
-                        }, settings.timeMove);
+                    label.css('color', settings.labelColor);
+                    if (self.status === false) {
+                        label.moveOut();
                     }
                 });
-                self.blur(function(){
+                self.on("blur", function(){
                     if(settings.useBorderColor){
                         self.css('border-color',currentBorderColor);
                     }
-                    label.css('color',settings.placeholderColor);
-                    if(!self.val().length){
-                        var lh = label.height();
-                        var mtm = Number(pt.replace('px','')) + (lh/2);
-                        if(!settings.inInput){
-                            mtm += lh/2;
-                            label.css('background-color','');
-                        }
-                        label.animate({
-                            marginTop: "+="+mtm,
-                            fontSize: currentPlaceholderSize
-                        }, settings.timeMove);
+                    label.css('color', settings.placeholderColor);
+
+                    if (!self.val().length && self.status === true) {
+                        label.moveIn();
                     }
                 });
+                self.on("moveInLabel", function () {
+                    if (self.status)
+                        label.moveIn();
+                })
+                self.on("moveOutLabel", function () {
+                    if (self.status == false)
+                        label.moveOut();
+                })
                 if(self.attr('alt')){
                     var textLabel = self.attr('alt');
                     var textLabelOld = label.text();
@@ -108,10 +154,11 @@
                         }
                     });
                 }
-                 self.before(label);
-                 if(self.val().length){
-                    BindOnData(label, self, pt);
+                self.before(label);
+                if(self.val().length){
+                    BindOnData(label, self, paddingTop);
                 }
+
                 return self.attr('bind-placeholder-label','true');
             } else {
                 return null;
